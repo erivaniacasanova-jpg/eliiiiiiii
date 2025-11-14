@@ -14,7 +14,7 @@ export default function Home() {
               />
             </div>
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Seja bem-vindo ao Registro de Associados</h1>
-            <p className="text-sm sm:text-base text-gray-700 mt-2 font-medium">Patrocinador: Layanna Kristina Chagas Araujo Faustino</p>
+            <p className="text-sm sm:text-base text-gray-700 mt-2 font-medium">Patrocinador: Francisco Eliedisom Dos Santos</p>
             <p className="text-sm sm:text-base text-gray-600 mt-1">Realize seu cadastro sem consulta ao SPC/SERASA e sem fidelidade.</p>
           </div>
           <RegistrationForm />
