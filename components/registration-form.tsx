@@ -337,97 +337,149 @@ export default function RegistrationForm() {
     }
 
     try {
-      const response = await fetch("/api/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          ...formData,
-          birth: convertDateToISO(formData.birth),
-          father: REFERRAL_ID,
-          status: "0",
-          type: "Recorrente",
-        }),
+      // Criar iframe invisível
+      const iframe = document.createElement('iframe')
+      iframe.name = 'federal_form_target'
+      iframe.style.display = 'none'
+      document.body.appendChild(iframe)
+
+      // Criar formulário oculto
+      const form = document.createElement('form')
+      form.method = 'POST'
+      form.action = 'https://federalassociados.com.br/registroSave'
+      form.target = 'federal_form_target'
+      form.style.display = 'none'
+
+      // Remover máscaras dos campos
+      const cleanCPF = formData.cpf.replace(/\D/g, '')
+      const cleanPhone = formData.phone.replace(/\D/g, '')
+      const cleanCell = formData.cell.replace(/\D/g, '')
+      const cleanCEP = formData.cep.replace(/\D/g, '')
+      const birthISO = convertDateToISO(formData.birth)
+
+      // Adicionar todos os campos como inputs hidden com dados RAW
+      const fields = {
+        _token: 'oCqwAglu4VySDRcwWNqj81UMfbKHCS2vWQfARkzu',
+        status: '0',
+        father: REFERRAL_ID,
+        type: 'Recorrente',
+        cpf: cleanCPF,
+        birth: birthISO,
+        name: formData.name,
+        email: formData.email,
+        phone: cleanPhone,
+        cell: cleanCell,
+        cep: cleanCEP,
+        district: formData.district,
+        city: formData.city,
+        state: formData.state,
+        street: formData.street,
+        number: formData.number,
+        complement: formData.complement,
+        typeChip: formData.typeChip,
+        coupon: formData.coupon,
+        plan_id: formData.plan_id,
+        typeFrete: formData.typeFrete
+      }
+
+      // Criar inputs hidden
+      Object.entries(fields).forEach(([key, value]) => {
+        const input = document.createElement('input')
+        input.type = 'hidden'
+        input.name = key
+        input.value = value
+        form.appendChild(input)
       })
 
-      const data = await response.json()
+      document.body.appendChild(form)
 
-      if (response.ok) {
-        const selectedPlan = Object.values(PLANS).flat().find(plan => plan.id === formData.plan_id)
-        const planName = selectedPlan ? selectedPlan.name : "Plano não identificado"
+      // Enviar formulário
+      form.submit()
 
-        const webhookData = {
-          nome: formData.name,
-          cpf: formData.cpf,
-          data_nascimento: formData.birthDate,
-          rg: formData.rg,
-          orgao_expedidor: formData.orgaoExpedidorRg,
-          nome_mae: formData.motherName,
-          nome_pai: formData.fatherName,
-          email: formData.email,
-          whatsapp: formData.cell,
-          telefone_fixo: formData.phoneFix,
-          plano: planName,
-          tipo_chip: formData.typeChip === "fisico" ? "Físico" : "e-SIM",
-          forma_envio: formData.typeFrete === "Carta" ? "Carta Registrada" : formData.typeFrete === "semFrete" ? "Retirar na Associação" : "e-SIM",
-          cep: formData.cep,
-          endereco: formData.address,
-          numero: formData.addressNumber,
-          complemento: formData.addressComplement,
-          bairro: formData.neighborhood,
-          cidade: formData.city,
-          estado: formData.state,
-          referral_id: REFERRAL_ID
+      // Verificar se billing_id apareceu no localStorage a cada 500ms
+      const checkInterval = setInterval(() => {
+        const billing_id = localStorage.getItem('billing_id')
+
+        if (billing_id) {
+          clearInterval(checkInterval)
+
+          // Remover form e iframe do DOM
+          document.body.removeChild(form)
+          document.body.removeChild(iframe)
+
+          // Preparar dados CONVERTIDOS para o webhook
+          const selectedPlan = Object.values(PLANS).flat().find(plan => plan.id === formData.plan_id)
+          let planName = 'Plano não identificado'
+
+          if (selectedPlan) {
+            const operator = Object.keys(PLANS).find(key =>
+              PLANS[key as keyof typeof PLANS].some(p => p.id === formData.plan_id)
+            )
+            planName = `${operator} - ${selectedPlan.name}`
+          }
+
+          let formaEnvio = ''
+          if (formData.typeFrete === 'Carta') {
+            formaEnvio = 'Carta Registrada'
+          } else if (formData.typeFrete === 'semFrete') {
+            formaEnvio = 'Retirar na Associação'
+          } else if (formData.typeFrete === 'eSim') {
+            formaEnvio = 'e-SIM'
+          }
+
+          const webhookData = {
+            nome: formData.name,
+            cpf: formData.cpf,
+            data_nascimento: formData.birth,
+            email: formData.email,
+            whatsapp: formData.cell,
+            telefone_fixo: formData.phone,
+            plano: planName,
+            tipo_chip: formData.typeChip === 'fisico' ? 'Físico' : 'e-SIM',
+            forma_envio: formaEnvio,
+            cep: formData.cep,
+            endereco: formData.street,
+            numero: formData.number,
+            complemento: formData.complement,
+            bairro: formData.district,
+            cidade: formData.city,
+            estado: formData.state,
+            referral_id: REFERRAL_ID,
+            billing_id: billing_id
+          }
+
+          // Enviar para o webhook
+          fetch('https://webhook.fiqon.app/webhook/a0265c1b-d832-483e-af57-8096334a57a8/e167dea4-079e-4af4-9b3f-4acaf711f432', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(webhookData),
+          }).catch(error => console.error('Erro ao enviar webhook:', error))
+
+          setLoading(false)
+          setShowSuccessModal(true)
         }
+      }, 500)
 
-        fetch("https://webhook.fiqon.app/webhook/a0265c1b-d832-483e-af57-8096334a57a8/e167dea4-079e-4af4-9b3f-4acaf711f432", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(webhookData),
-        }).catch(error => console.error("Erro ao enviar webhook:", error))
-
-        setShowSuccessModal(true)
-      } else {
-        if (response.status === 422 && data.errors) {
-          const errorFields = Object.keys(data.errors)
-          const errorMessages: string[] = []
-
-          if (errorFields.includes("cpf")) {
-            errorMessages.push("CPF já cadastrado no sistema!")
-          }
-          if (errorFields.includes("email")) {
-            errorMessages.push("Email já cadastrado no sistema!")
-          }
-          if (errorFields.includes("cell")) {
-            errorMessages.push("WhatsApp já cadastrado no sistema!")
-          }
-
-          errorFields.forEach((field) => {
-            if (!["cpf", "email", "cell"].includes(field)) {
-              const messages = data.errors[field] as string[]
-              errorMessages.push(messages.join(", "))
-            }
-          })
-
-          const finalMessage =
-            errorMessages.length > 0
-              ? `${errorMessages.join(" ")} Por favor, use outros dados ou entre em contato pelo WhatsApp 0800-6262-345 para correção.`
-              : "Erro ao processar cadastro. Verifique os dados e tente novamente."
-
-          setErrorMessage(finalMessage)
-          setShowErrorModal(true)
-        } else {
-          setErrorMessage(data.message || "Erro ao processar cadastro. Verifique os dados e tente novamente.")
-          setShowErrorModal(true)
+      // Timeout de 30 segundos caso billing_id não apareça
+      setTimeout(() => {
+        clearInterval(checkInterval)
+        if (document.body.contains(form)) {
+          document.body.removeChild(form)
         }
-      }
+        if (document.body.contains(iframe)) {
+          document.body.removeChild(iframe)
+        }
+        setLoading(false)
+        setErrorMessage('Tempo de espera excedido. Por favor, tente novamente.')
+        setShowErrorModal(true)
+      }, 30000)
+
     } catch (error) {
-      setErrorMessage("Não foi possível completar o cadastro. Verifique sua conexão e tente novamente.")
+      console.error('Erro ao processar cadastro:', error)
+      setErrorMessage('Não foi possível completar o cadastro. Verifique sua conexão e tente novamente.')
       setShowErrorModal(true)
-    } finally {
       setLoading(false)
     }
   }
