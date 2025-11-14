@@ -92,7 +92,6 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
     birth: "",
     name: "",
     email: "",
-    phone: "",
     cell: "",
     cep: "",
     district: "",
@@ -161,7 +160,7 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
 
     if (field === "cpf") {
       formattedValue = formatCPF(value)
-    } else if (field === "phone" || field === "cell") {
+    } else if (field === "cell") {
       formattedValue = formatPhone(value)
     } else if (field === "cep") {
       formattedValue = formatCEP(value)
@@ -364,7 +363,6 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
 
       // Remover máscaras dos campos
       const cleanCPF = formData.cpf.replace(/\D/g, '')
-      const cleanPhone = formData.phone.replace(/\D/g, '')
       const cleanCell = formData.cell.replace(/\D/g, '')
       const cleanCEP = formData.cep.replace(/\D/g, '')
       const birthISO = convertDateToISO(formData.birth)
@@ -379,7 +377,7 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
         birth: birthISO,
         name: formData.name,
         email: formData.email,
-        phone: cleanPhone,
+        phone: "",
         cell: cleanCell,
         cep: cleanCEP,
         district: formData.district,
@@ -444,7 +442,7 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
           data_nascimento: formData.birth,
           email: formData.email,
           whatsapp: formData.cell,
-          telefone_fixo: formData.phone,
+          telefone_fixo: "",
           plano: planName,
           tipo_chip: formData.typeChip === 'fisico' ? 'Físico' : 'e-SIM',
           forma_envio: formaEnvio,
@@ -704,22 +702,8 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="phone">
-                  Telefone <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="phone"
-                  value={formData.phone}
-                  onChange={(e) => handleInputChange("phone", e.target.value)}
-                  placeholder="(00) 0000-0000"
-                  maxLength={15}
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
                 <Label htmlFor="cell">
-                  Celular <span className="text-red-500">*</span>
+                  WhatsApp <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   id="cell"
@@ -897,6 +881,10 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
             {loading ? "Processando..." : "Salvar"}
           </Button>
         </div>
+
+        <p className="text-sm text-gray-600 mt-4">
+          Ao clicar em salvar, você será redirecionado para realizar o pagamento da sua taxa associativa, sendo ela o valor proporcional ao plano que você escolheu.
+        </p>
       </form>
 
       <ErrorModal open={showErrorModal} onOpenChange={setShowErrorModal} message={errorMessage} />
