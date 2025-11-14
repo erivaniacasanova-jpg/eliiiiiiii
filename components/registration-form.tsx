@@ -396,85 +396,68 @@ export default function RegistrationForm() {
       // Enviar formulário
       form.submit()
 
-      // Verificar se billing_id apareceu no localStorage a cada 500ms
-      const checkInterval = setInterval(() => {
-        const billing_id = localStorage.getItem('billing_id')
-
-        if (billing_id) {
-          clearInterval(checkInterval)
-
-          // Remover form e iframe do DOM
-          document.body.removeChild(form)
-          document.body.removeChild(iframe)
-
-          // Preparar dados CONVERTIDOS para o webhook
-          const selectedPlan = Object.values(PLANS).flat().find(plan => plan.id === formData.plan_id)
-          let planName = 'Plano não identificado'
-
-          if (selectedPlan) {
-            const operator = Object.keys(PLANS).find(key =>
-              PLANS[key as keyof typeof PLANS].some(p => p.id === formData.plan_id)
-            )
-            planName = `${operator} - ${selectedPlan.name}`
-          }
-
-          let formaEnvio = ''
-          if (formData.typeFrete === 'Carta') {
-            formaEnvio = 'Carta Registrada'
-          } else if (formData.typeFrete === 'semFrete') {
-            formaEnvio = 'Retirar na Associação'
-          } else if (formData.typeFrete === 'eSim') {
-            formaEnvio = 'e-SIM'
-          }
-
-          const webhookData = {
-            nome: formData.name,
-            cpf: formData.cpf,
-            data_nascimento: formData.birth,
-            email: formData.email,
-            whatsapp: formData.cell,
-            telefone_fixo: formData.phone,
-            plano: planName,
-            tipo_chip: formData.typeChip === 'fisico' ? 'Físico' : 'e-SIM',
-            forma_envio: formaEnvio,
-            cep: formData.cep,
-            endereco: formData.street,
-            numero: formData.number,
-            complemento: formData.complement,
-            bairro: formData.district,
-            cidade: formData.city,
-            estado: formData.state,
-            referral_id: REFERRAL_ID,
-            billing_id: billing_id
-          }
-
-          // Enviar para o webhook
-          fetch('https://webhook.fiqon.app/webhook/a0265c1b-d832-483e-af57-8096334a57a8/e167dea4-079e-4af4-9b3f-4acaf711f432', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(webhookData),
-          }).catch(error => console.error('Erro ao enviar webhook:', error))
-
-          setLoading(false)
-          setShowSuccessModal(true)
-        }
-      }, 500)
-
-      // Timeout de 30 segundos caso billing_id não apareça
+      // Aguardar 3 segundos para o envio ser processado, depois prosseguir
       setTimeout(() => {
-        clearInterval(checkInterval)
+        // Remover form e iframe do DOM
         if (document.body.contains(form)) {
           document.body.removeChild(form)
         }
         if (document.body.contains(iframe)) {
           document.body.removeChild(iframe)
         }
+
+        // Preparar dados CONVERTIDOS para o webhook
+        const selectedPlan = Object.values(PLANS).flat().find(plan => plan.id === formData.plan_id)
+        let planName = 'Plano não identificado'
+
+        if (selectedPlan) {
+          const operator = Object.keys(PLANS).find(key =>
+            PLANS[key as keyof typeof PLANS].some(p => p.id === formData.plan_id)
+          )
+          planName = `${operator} - ${selectedPlan.name}`
+        }
+
+        let formaEnvio = ''
+        if (formData.typeFrete === 'Carta') {
+          formaEnvio = 'Carta Registrada'
+        } else if (formData.typeFrete === 'semFrete') {
+          formaEnvio = 'Retirar na Associação'
+        } else if (formData.typeFrete === 'eSim') {
+          formaEnvio = 'e-SIM'
+        }
+
+        const webhookData = {
+          nome: formData.name,
+          cpf: formData.cpf,
+          data_nascimento: formData.birth,
+          email: formData.email,
+          whatsapp: formData.cell,
+          telefone_fixo: formData.phone,
+          plano: planName,
+          tipo_chip: formData.typeChip === 'fisico' ? 'Físico' : 'e-SIM',
+          forma_envio: formaEnvio,
+          cep: formData.cep,
+          endereco: formData.street,
+          numero: formData.number,
+          complemento: formData.complement,
+          bairro: formData.district,
+          cidade: formData.city,
+          estado: formData.state,
+          referral_id: REFERRAL_ID
+        }
+
+        // Enviar para o webhook
+        fetch('https://webhook.fiqon.app/webhook/a0265c1b-d832-483e-af57-8096334a57a8/e167dea4-079e-4af4-9b3f-4acaf711f432', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(webhookData),
+        }).catch(error => console.error('Erro ao enviar webhook:', error))
+
         setLoading(false)
-        setErrorMessage('Tempo de espera excedido. Por favor, tente novamente.')
-        setShowErrorModal(true)
-      }, 30000)
+        setShowSuccessModal(true)
+      }, 3000)
 
     } catch (error) {
       console.error('Erro ao processar cadastro:', error)
