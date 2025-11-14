@@ -6,13 +6,6 @@ export default function Home() {
       <div className="container mx-auto max-w-4xl w-full px-3 sm:px-6 md:px-8">
         <div className="bg-white rounded-lg shadow-xl p-4 sm:p-6 md:p-8">
           <div className="text-center mb-6 md:mb-8">
-            <div className="flex justify-center mb-4 md:mb-6">
-              <img
-                src="/image.png"
-                alt="Palmas Net Internet"
-                className="w-32 md:w-40 lg:w-48 h-auto"
-              />
-            </div>
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Seja bem-vindo ao Registro de Associados</h1>
             <p className="text-sm sm:text-base text-gray-700 mt-2 font-medium">Patrocinador: Francisco Eliedisom Dos Santos</p>
             <p className="text-sm sm:text-base text-gray-600 mt-1">Realize seu cadastro sem consulta ao SPC/SERASA e sem fidelidade.</p>
