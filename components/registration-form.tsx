@@ -882,7 +882,7 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
           </Button>
         </div>
 
-        <p className="text-sm text-gray-600 mt-4">
+        <p className="text-sm text-gray-600 mt-4 text-center">
           Ao clicar em salvar, você será redirecionado para realizar o pagamento da sua taxa associativa, sendo ela o valor proporcional ao plano que você escolheu.
         </p>
       </form>
