@@ -12,7 +12,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
 import ErrorModal from "@/components/error-modal"
 
-const REFERRAL_ID = "110956" // Francisco Eliedisom Dos Santos
+const DEFAULT_REFERRAL_ID = "110956" // Francisco Eliedisom Dos Santos
 
 const BRAZILIAN_STATES = [
   { value: "AC", label: "Acre" },
@@ -61,7 +61,19 @@ const PLANS = {
   ],
 }
 
-export default function RegistrationForm() {
+interface Representante {
+  id: string
+  nome: string
+  whatsapp: string
+}
+
+interface RegistrationFormProps {
+  representante?: Representante
+}
+
+export default function RegistrationForm({ representante }: RegistrationFormProps) {
+  const REFERRAL_ID = representante?.id || DEFAULT_REFERRAL_ID
+
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
