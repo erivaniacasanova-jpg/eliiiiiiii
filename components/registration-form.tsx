@@ -347,21 +347,21 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
       return
     }
 
-    // Validar se o CPF já está cadastrado
+    // Validar se o CPF já está cadastrado ANTES de prosseguir
     try {
       const cleanCPFCheck = formData.cpf.replace(/\D/g, '')
-      const cpfCheckResponse = await fetch(`https://federalassociados.com.br/checkCpf/${cleanCPFCheck}`)
+      const cpfCheckResponse = await fetch(`/api/check-cpf?cpf=${cleanCPFCheck}`)
       const cpfCheckData = await cpfCheckResponse.json()
 
-      if (cpfCheckData.status === 'error' && cpfCheckData.message) {
-        setErrorMessage(cpfCheckData.message || 'CPF já cadastrado. Não é possível realizar o cadastro.')
+      if (cpfCheckData.exists === true || cpfCheckData.status === 'error') {
+        setErrorMessage('CPF já cadastrado. Não é possível realizar o cadastro.')
         setShowErrorModal(true)
         setLoading(false)
         return
       }
     } catch (error) {
       console.error('Erro ao verificar CPF:', error)
-      // Se houver erro na verificação, continua o processo (evita bloquear o usuário)
+      // Continua o processo mesmo com erro na verificação
     }
 
     try {
