@@ -82,6 +82,7 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
   const [billingId, setBillingId] = useState<string>("")
   const [orderAmount, setOrderAmount] = useState<number>(0)
   const [cpfValidated, setCpfValidated] = useState(false)
+  const [cpfExists, setCpfExists] = useState(false)
   const [emailValidated, setEmailValidated] = useState(false)
   const [showWelcomeVideo, setShowWelcomeVideo] = useState(false)
   const [showSuccessModal, setShowSuccessModal] = useState(false)
@@ -314,6 +315,30 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
     }
   }
 
+  const checkCpfDuplicate = async (cpf: string) => {
+    if (!cpf || cpf.replace(/\D/g, '').length !== 11) return
+
+    try {
+      const cleanCPF = cpf.replace(/\D/g, '')
+      const response = await fetch(`/api/check-cpf?cpf=${cleanCPF}`)
+      const data = await response.json()
+
+      if (data.exists === true || data.status === 'error') {
+        setCpfExists(true)
+        toast({
+          title: "CPF já cadastrado",
+          description: "Este CPF já está cadastrado no sistema. Não é possível realizar o cadastro.",
+          variant: "destructive",
+        })
+      } else {
+        setCpfExists(false)
+      }
+    } catch (error) {
+      console.error("Erro ao verificar CPF:", error)
+      setCpfExists(false)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -347,21 +372,11 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
       return
     }
 
-    // Validar se o CPF já está cadastrado ANTES de prosseguir
-    try {
-      const cleanCPFCheck = formData.cpf.replace(/\D/g, '')
-      const cpfCheckResponse = await fetch(`/api/check-cpf?cpf=${cleanCPFCheck}`)
-      const cpfCheckData = await cpfCheckResponse.json()
-
-      if (cpfCheckData.exists === true || cpfCheckData.status === 'error') {
-        setErrorMessage('CPF já cadastrado. Não é possível realizar o cadastro.')
-        setShowErrorModal(true)
-        setLoading(false)
-        return
-      }
-    } catch (error) {
-      console.error('Erro ao verificar CPF:', error)
-      // Continua o processo mesmo com erro na verificação
+    if (cpfExists) {
+      setErrorMessage('CPF já cadastrado. Não é possível realizar o cadastro.')
+      setShowErrorModal(true)
+      setLoading(false)
+      return
     }
 
     try {
@@ -703,10 +718,11 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
                   id="cpf"
                   value={formData.cpf}
                   onChange={(e) => handleInputChange("cpf", e.target.value)}
+                  onBlur={(e) => checkCpfDuplicate(e.target.value)}
                   placeholder="000.000.000-00"
                   maxLength={14}
                   required
-                  className={cpfValidated ? "border-green-500" : ""}
+                  className={cpfExists ? "border-red-500" : cpfValidated ? "border-green-500" : ""}
                 />
               </div>
 
