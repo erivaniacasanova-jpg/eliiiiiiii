@@ -349,221 +349,129 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
     }
 
     try {
-      // Criar iframe invisível
-      const iframe = document.createElement('iframe')
-      iframe.name = 'federal_form_target'
-      iframe.style.display = 'none'
-      document.body.appendChild(iframe)
+      // Enviar para o proxy da Edge Function
+      const proxyUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/federal-proxy`
 
-      // Criar formulário oculto
-      const form = document.createElement('form')
-      form.method = 'POST'
-      form.action = 'https://federalassociados.com.br/registroSave'
-      form.target = 'federal_form_target'
-      form.style.display = 'none'
-
-      // Remover máscaras dos campos
       const cleanCPF = formData.cpf.replace(/\D/g, '')
       const cleanCell = formData.cell.replace(/\D/g, '')
-      const cleanCEP = formData.cep.replace(/\D/g, '')
-      const birthISO = convertDateToISO(formData.birth)
 
-      // Adicionar todos os campos como inputs hidden com dados RAW
-      const fields = {
-        _token: 'oCqwAglu4VySDRcwWNqj81UMfbKHCS2vWQfARkzu',
-        status: '0',
-        father: REFERRAL_ID,
-        type: 'Recorrente',
-        cpf: cleanCPF,
-        birth: birthISO,
-        name: formData.name,
-        email: formData.email,
-        phone: "",
-        cell: cleanCell,
-        cep: cleanCEP,
-        district: formData.district,
-        city: formData.city,
-        state: formData.state,
-        street: formData.street,
-        number: formData.number,
-        complement: formData.complement,
-        typeChip: formData.typeChip,
-        coupon: formData.coupon,
-        plan_id: formData.plan_id,
-        typeFrete: formData.typeFrete
-      }
-
-      // Criar inputs hidden
-      Object.entries(fields).forEach(([key, value]) => {
-        const input = document.createElement('input')
-        input.type = 'hidden'
-        input.name = key
-        input.value = value
-        form.appendChild(input)
-      })
-
-      document.body.appendChild(form)
-
-      // Monitorar o carregamento do iframe para detectar erros
-      iframe.onload = () => {
-        try {
-          // Tentar acessar o conteúdo do iframe
-          const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document
-
-          if (iframeDoc) {
-            const errorAlert = iframeDoc.querySelector('.alert-danger')
-            const errorSpan = iframeDoc.querySelector('.text-danger')
-
-            if (errorAlert && errorAlert.textContent.includes('cpf já está sendo utilizado')) {
-              // CPF duplicado detectado!
-              setErrorMessage('CPF já cadastrado. Não é possível realizar o cadastro.')
-              setShowErrorModal(true)
-              setLoading(false)
-
-              // Limpar iframe e form
-              if (document.body.contains(form)) {
-                document.body.removeChild(form)
-              }
-              if (document.body.contains(iframe)) {
-                document.body.removeChild(iframe)
-              }
-              return
-            }
-
-            if (errorSpan && errorSpan.textContent.includes('cpf já está sendo utilizado')) {
-              // CPF duplicado detectado!
-              setErrorMessage('CPF já cadastrado. Não é possível realizar o cadastro.')
-              setShowErrorModal(true)
-              setLoading(false)
-
-              // Limpar iframe e form
-              if (document.body.contains(form)) {
-                document.body.removeChild(form)
-              }
-              if (document.body.contains(iframe)) {
-                document.body.removeChild(iframe)
-              }
-              return
-            }
-          }
-        } catch (error) {
-          // Erro de CORS - não conseguimos ler o iframe, mas vamos prosseguir normalmente
-          console.log('Não foi possível verificar resposta do iframe (CORS)')
-        }
-
-        // Se não houver erro, prosseguir normalmente após 3 segundos
-        setTimeout(() => {
-          // Remover form e iframe do DOM
-          if (document.body.contains(form)) {
-            document.body.removeChild(form)
-          }
-          if (document.body.contains(iframe)) {
-            document.body.removeChild(iframe)
-          }
-
-        // Preparar dados CONVERTIDOS para o webhook
-        const selectedPlan = Object.values(PLANS).flat().find(plan => plan.id === formData.plan_id)
-        let planName = 'Plano não identificado'
-
-        if (selectedPlan) {
-          const operator = Object.keys(PLANS).find(key =>
-            PLANS[key as keyof typeof PLANS].some(p => p.id === formData.plan_id)
-          )
-          planName = `${operator} - ${selectedPlan.name}`
-        }
-
-        let formaEnvio = ''
-        if (formData.typeFrete === 'Carta') {
-          formaEnvio = 'Carta Registrada'
-        } else if (formData.typeFrete === 'semFrete') {
-          formaEnvio = 'Retirar na Associação'
-        } else if (formData.typeFrete === 'eSim') {
-          formaEnvio = 'e-SIM'
-        }
-
-        const webhookData = {
+      const proxyResponse = await fetch(proxyUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({
           nome: formData.name,
           cpf: formData.cpf,
-          data_nascimento: formData.birth,
           email: formData.email,
-          whatsapp: formData.cell,
-          telefone_fixo: "",
-          plano: planName,
-          tipo_chip: formData.typeChip === 'fisico' ? 'Físico' : 'e-SIM',
-          forma_envio: formaEnvio,
-          cep: formData.cep,
-          endereco: formData.street,
-          numero: formData.number,
-          complemento: formData.complement,
-          bairro: formData.district,
-          cidade: formData.city,
-          estado: formData.state,
-          referral_id: REFERRAL_ID
-        }
+          celular: formData.cell,
+          representanteId: REFERRAL_ID,
+        }),
+      })
 
-        // Enviar para o webhook do representante específico
-        if (REFERRAL_ID === '110956') {
-          // Webhook do representante 110956 (Francisco Eliedisom Dos Santos)
-          fetch('https://webhook.fiqon.app/webhook/a0265c1b-d832-483e-af57-8096334a57a8/e167dea4-079e-4af4-9b3f-4acaf711f432', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(webhookData),
-          }).catch(error => console.error('Erro ao enviar webhook 110956:', error))
-        }
+      const proxyData = await proxyResponse.json()
 
-        if (REFERRAL_ID === '110403') {
-          // Webhook do representante 110403
-          fetch('https://webhook.fiqon.app/webhook/019a82d0-9018-73a8-9702-405595187191/15c6ef7c-a0c0-4b0a-b6cf-f873564be560', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(webhookData),
-          }).catch(error => console.error('Erro ao enviar webhook 110403:', error))
-        }
-
-        if (REFERRAL_ID === '88389') {
-          // Webhook do representante 88389
-          fetch('https://webhook.fiqon.app/webhook/a02ccd6f-0d2f-401d-8d9b-c9e161d5330e/0624b4b1-d658-44d1-8291-ed8f0b5b3bf9', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(webhookData),
-          }).catch(error => console.error('Erro ao enviar webhook 88389:', error))
-        }
-
-        if (REFERRAL_ID === '159726') {
-          // Webhook do representante 159726
-          fetch('https://webhook.fiqon.app/webhook/019a87ed-830f-7073-af20-cc44131112f4/2dba1f6c-82cc-4625-87a1-a08888dd1d63', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(webhookData),
-          }).catch(error => console.error('Erro ao enviar webhook 159726:', error))
-        }
-
-        if (REFERRAL_ID === '131966') {
-          // Webhook do representante 131966
-          fetch('https://webhook.fiqon.app/webhook/a0436edd-0f48-454c-9fc2-f916fee56e34/ffc2252d-f738-4870-8287-81ea51a89542', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(webhookData),
-          }).catch(error => console.error('Erro ao enviar webhook 131966:', error))
-        }
-
+      if (!proxyResponse.ok || !proxyData.success) {
+        setErrorMessage(proxyData.error || 'Erro ao processar cadastro')
+        setShowErrorModal(true)
         setLoading(false)
-        setShowSuccessModal(true)
-      }, 3000)
+        return
       }
 
-      // Enviar formulário
-      form.submit()
+      // Preparar dados CONVERTIDOS para o webhook
+      const selectedPlan = Object.values(PLANS).flat().find(plan => plan.id === formData.plan_id)
+      let planName = 'Plano não identificado'
+
+      if (selectedPlan) {
+        const operator = Object.keys(PLANS).find(key =>
+          PLANS[key as keyof typeof PLANS].some(p => p.id === formData.plan_id)
+        )
+        planName = `${operator} - ${selectedPlan.name}`
+      }
+
+      let formaEnvio = ''
+      if (formData.typeFrete === 'Carta') {
+        formaEnvio = 'Carta Registrada'
+      } else if (formData.typeFrete === 'semFrete') {
+        formaEnvio = 'Retirar na Associação'
+      } else if (formData.typeFrete === 'eSim') {
+        formaEnvio = 'e-SIM'
+      }
+
+      const webhookData = {
+        nome: formData.name,
+        cpf: formData.cpf,
+        data_nascimento: formData.birth,
+        email: formData.email,
+        whatsapp: formData.cell,
+        telefone_fixo: "",
+        plano: planName,
+        tipo_chip: formData.typeChip === 'fisico' ? 'Físico' : 'e-SIM',
+        forma_envio: formaEnvio,
+        cep: formData.cep,
+        endereco: formData.street,
+        numero: formData.number,
+        complemento: formData.complement,
+        bairro: formData.district,
+        cidade: formData.city,
+        estado: formData.state,
+        referral_id: REFERRAL_ID
+      }
+
+      // Enviar para o webhook do representante específico
+      if (REFERRAL_ID === '110956') {
+        fetch('https://webhook.fiqon.app/webhook/a0265c1b-d832-483e-af57-8096334a57a8/e167dea4-079e-4af4-9b3f-4acaf711f432', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(webhookData),
+        }).catch(error => console.error('Erro ao enviar webhook 110956:', error))
+      }
+
+      if (REFERRAL_ID === '110403') {
+        fetch('https://webhook.fiqon.app/webhook/019a82d0-9018-73a8-9702-405595187191/15c6ef7c-a0c0-4b0a-b6cf-f873564be560', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(webhookData),
+        }).catch(error => console.error('Erro ao enviar webhook 110403:', error))
+      }
+
+      if (REFERRAL_ID === '88389') {
+        fetch('https://webhook.fiqon.app/webhook/a02ccd6f-0d2f-401d-8d9b-c9e161d5330e/0624b4b1-d658-44d1-8291-ed8f0b5b3bf9', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(webhookData),
+        }).catch(error => console.error('Erro ao enviar webhook 88389:', error))
+      }
+
+      if (REFERRAL_ID === '159726') {
+        fetch('https://webhook.fiqon.app/webhook/019a87ed-830f-7073-af20-cc44131112f4/2dba1f6c-82cc-4625-87a1-a08888dd1d63', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(webhookData),
+        }).catch(error => console.error('Erro ao enviar webhook 159726:', error))
+      }
+
+      if (REFERRAL_ID === '131966') {
+        fetch('https://webhook.fiqon.app/webhook/a0436edd-0f48-454c-9fc2-f916fee56e34/ffc2252d-f738-4870-8287-81ea51a89542', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(webhookData),
+        }).catch(error => console.error('Erro ao enviar webhook 131966:', error))
+      }
+
+      setLoading(false)
+      setShowSuccessModal(true)
 
     } catch (error) {
       console.error('Erro ao processar cadastro:', error)
