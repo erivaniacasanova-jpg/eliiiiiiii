@@ -349,37 +349,119 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
     }
 
     try {
-      // Enviar para o proxy da Edge Function
-      const proxyUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/federal-proxy`
+      // Criar iframe invisível
+      const iframe = document.createElement('iframe')
+      iframe.name = 'federal_form_target'
+      iframe.style.display = 'none'
+      document.body.appendChild(iframe)
 
+      // Criar formulário oculto
+      const form = document.createElement('form')
+      form.method = 'POST'
+      form.action = 'https://federalassociados.com.br/registroSave'
+      form.target = 'federal_form_target'
+      form.style.display = 'none'
+
+      // Remover máscaras dos campos
       const cleanCPF = formData.cpf.replace(/\D/g, '')
       const cleanCell = formData.cell.replace(/\D/g, '')
+      const cleanCEP = formData.cep.replace(/\D/g, '')
+      const birthISO = convertDateToISO(formData.birth)
 
-      const proxyResponse = await fetch(proxyUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
-        },
-        body: JSON.stringify({
-          nome: formData.name,
-          cpf: formData.cpf,
-          email: formData.email,
-          celular: formData.cell,
-          representanteId: REFERRAL_ID,
-        }),
-      })
-
-      const proxyData = await proxyResponse.json()
-
-      if (!proxyResponse.ok || !proxyData.success) {
-        setErrorMessage(proxyData.error || 'Erro ao processar cadastro')
-        setShowErrorModal(true)
-        setLoading(false)
-        return
+      // Adicionar todos os campos como inputs hidden com dados RAW
+      const fields = {
+        _token: 'oCqwAglu4VySDRcwWNqj81UMfbKHCS2vWQfARkzu',
+        status: '0',
+        father: REFERRAL_ID,
+        type: 'Recorrente',
+        cpf: cleanCPF,
+        birth: birthISO,
+        name: formData.name,
+        email: formData.email,
+        phone: "",
+        cell: cleanCell,
+        cep: cleanCEP,
+        district: formData.district,
+        city: formData.city,
+        state: formData.state,
+        street: formData.street,
+        number: formData.number,
+        complement: formData.complement,
+        typeChip: formData.typeChip,
+        coupon: formData.coupon,
+        plan_id: formData.plan_id,
+        typeFrete: formData.typeFrete
       }
 
-      // Preparar dados CONVERTIDOS para o webhook
+      // Criar inputs hidden
+      Object.entries(fields).forEach(([key, value]) => {
+        const input = document.createElement('input')
+        input.type = 'hidden'
+        input.name = key
+        input.value = value
+        form.appendChild(input)
+      })
+
+      document.body.appendChild(form)
+
+      // Monitorar o carregamento do iframe para detectar erros
+      iframe.onload = () => {
+        try {
+          // Tentar acessar o conteúdo do iframe
+          const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document
+
+          if (iframeDoc) {
+            const errorAlert = iframeDoc.querySelector('.alert-danger')
+            const errorSpan = iframeDoc.querySelector('.text-danger')
+
+            if (errorAlert && errorAlert.textContent.includes('cpf já está sendo utilizado')) {
+              // CPF duplicado detectado!
+              setErrorMessage('CPF já cadastrado. Não é possível realizar o cadastro.')
+              setShowErrorModal(true)
+              setLoading(false)
+
+              // Limpar iframe e form
+              if (document.body.contains(form)) {
+                document.body.removeChild(form)
+              }
+              if (document.body.contains(iframe)) {
+                document.body.removeChild(iframe)
+              }
+              return
+            }
+
+            if (errorSpan && errorSpan.textContent.includes('cpf já está sendo utilizado')) {
+              // CPF duplicado detectado!
+              setErrorMessage('CPF já cadastrado. Não é possível realizar o cadastro.')
+              setShowErrorModal(true)
+              setLoading(false)
+
+              // Limpar iframe e form
+              if (document.body.contains(form)) {
+                document.body.removeChild(form)
+              }
+              if (document.body.contains(iframe)) {
+                document.body.removeChild(iframe)
+              }
+              return
+            }
+          }
+        } catch (error) {
+          // Erro de CORS - não conseguimos ler o iframe, mas vamos prosseguir normalmente
+          console.log('Não foi possível verificar resposta do iframe (CORS)')
+        }
+
+        // Se não houver erro, prosseguir normalmente após 3 segundos
+        setTimeout(() => {
+          // Remover form e iframe do DOM
+          if (document.body.contains(form)) {
+            document.body.removeChild(form)
+          }
+          if (document.body.contains(iframe)) {
+            document.body.removeChild(iframe)
+          }
+
+        // Preparar dados CONVERTIDOS para o webhook
       const selectedPlan = Object.values(PLANS).flat().find(plan => plan.id === formData.plan_id)
       let planName = 'Plano não identificado'
 
@@ -470,8 +552,13 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
         }).catch(error => console.error('Erro ao enviar webhook 131966:', error))
       }
 
-      setLoading(false)
-      setShowSuccessModal(true)
+        setLoading(false)
+        setShowSuccessModal(true)
+      }, 3000)
+      }
+
+      // Enviar formulário
+      form.submit()
 
     } catch (error) {
       console.error('Erro ao processar cadastro:', error)
