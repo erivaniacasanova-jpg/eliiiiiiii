@@ -404,18 +404,62 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
 
       document.body.appendChild(form)
 
-      // Enviar formulário
-      form.submit()
+      // Monitorar o carregamento do iframe para detectar erros
+      iframe.onload = () => {
+        try {
+          // Tentar acessar o conteúdo do iframe
+          const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document
 
-      // Aguardar 3 segundos para o envio ser processado, depois prosseguir
-      setTimeout(() => {
-        // Remover form e iframe do DOM
-        if (document.body.contains(form)) {
-          document.body.removeChild(form)
+          if (iframeDoc) {
+            const errorAlert = iframeDoc.querySelector('.alert-danger')
+            const errorSpan = iframeDoc.querySelector('.text-danger')
+
+            if (errorAlert && errorAlert.textContent.includes('cpf já está sendo utilizado')) {
+              // CPF duplicado detectado!
+              setErrorMessage('CPF já cadastrado. Não é possível realizar o cadastro.')
+              setShowErrorModal(true)
+              setLoading(false)
+
+              // Limpar iframe e form
+              if (document.body.contains(form)) {
+                document.body.removeChild(form)
+              }
+              if (document.body.contains(iframe)) {
+                document.body.removeChild(iframe)
+              }
+              return
+            }
+
+            if (errorSpan && errorSpan.textContent.includes('cpf já está sendo utilizado')) {
+              // CPF duplicado detectado!
+              setErrorMessage('CPF já cadastrado. Não é possível realizar o cadastro.')
+              setShowErrorModal(true)
+              setLoading(false)
+
+              // Limpar iframe e form
+              if (document.body.contains(form)) {
+                document.body.removeChild(form)
+              }
+              if (document.body.contains(iframe)) {
+                document.body.removeChild(iframe)
+              }
+              return
+            }
+          }
+        } catch (error) {
+          // Erro de CORS - não conseguimos ler o iframe, mas vamos prosseguir normalmente
+          console.log('Não foi possível verificar resposta do iframe (CORS)')
         }
-        if (document.body.contains(iframe)) {
-          document.body.removeChild(iframe)
-        }
+
+        // Se não houver erro, prosseguir normalmente após 3 segundos
+        setTimeout(() => {
+          // Remover form e iframe do DOM
+          if (document.body.contains(form)) {
+            document.body.removeChild(form)
+          }
+          if (document.body.contains(iframe)) {
+            document.body.removeChild(iframe)
+          }
 
         // Preparar dados CONVERTIDOS para o webhook
         const selectedPlan = Object.values(PLANS).flat().find(plan => plan.id === formData.plan_id)
@@ -516,6 +560,10 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
         setLoading(false)
         setShowSuccessModal(true)
       }, 3000)
+      }
+
+      // Enviar formulário
+      form.submit()
 
     } catch (error) {
       console.error('Erro ao processar cadastro:', error)
