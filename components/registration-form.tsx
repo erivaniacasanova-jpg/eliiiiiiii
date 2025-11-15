@@ -347,6 +347,23 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
       return
     }
 
+    // Validar se o CPF já está cadastrado
+    try {
+      const cleanCPFCheck = formData.cpf.replace(/\D/g, '')
+      const cpfCheckResponse = await fetch(`https://federalassociados.com.br/checkCpf/${cleanCPFCheck}`)
+      const cpfCheckData = await cpfCheckResponse.json()
+
+      if (cpfCheckData.status === 'error' && cpfCheckData.message) {
+        setErrorMessage(cpfCheckData.message || 'CPF já cadastrado. Não é possível realizar o cadastro.')
+        setShowErrorModal(true)
+        setLoading(false)
+        return
+      }
+    } catch (error) {
+      console.error('Erro ao verificar CPF:', error)
+      // Se houver erro na verificação, continua o processo (evita bloquear o usuário)
+    }
+
     try {
       // Criar iframe invisível
       const iframe = document.createElement('iframe')
