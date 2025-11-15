@@ -44,6 +44,11 @@ export default async function RepresentantePage({ params }: { params: Promise<{ 
       nome: "Geovani Gomes Da Silva",
       whatsapp: "556299198806",
     },
+    "159726": {
+      id: "159726",
+      nome: " Jose Cardoso Dos Santos",
+      whatsapp: "556993397859",
+    },
   }
 
   const representante = representantes[representanteId as keyof typeof representantes]
