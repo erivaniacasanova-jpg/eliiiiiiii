@@ -11,6 +11,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Card, CardContent } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
 import ErrorModal from "@/components/error-modal"
+import { supabase } from "@/lib/supabase"
 
 const DEFAULT_REFERRAL_ID = "110956" // Francisco Eliedisom Dos Santos
 
@@ -348,6 +349,21 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
       return
     }
 
+    const cleanCPF = formData.cpf.replace(/\D/g, '')
+
+    const { data: existingRegistration } = await supabase
+      .from('registrations')
+      .select('cpf')
+      .eq('cpf', cleanCPF)
+      .maybeSingle()
+
+    if (existingRegistration) {
+      setErrorMessage('CPF já cadastrado. Não é possível realizar o cadastro.')
+      setShowErrorModal(true)
+      setLoading(false)
+      return
+    }
+
     try {
       // Criar iframe invisível
       const iframe = document.createElement('iframe')
@@ -363,7 +379,6 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
       form.style.display = 'none'
 
       // Remover máscaras dos campos
-      const cleanCPF = formData.cpf.replace(/\D/g, '')
       const cleanCell = formData.cell.replace(/\D/g, '')
       const cleanCEP = formData.cep.replace(/\D/g, '')
       const birthISO = convertDateToISO(formData.birth)
@@ -556,6 +571,21 @@ export default function RegistrationForm({ representante }: RegistrationFormProp
             body: JSON.stringify(webhookData),
           }).catch(error => console.error('Erro ao enviar webhook 131966:', error))
         }
+
+        supabase
+          .from('registrations')
+          .insert({
+            cpf: cleanCPF,
+            name: formData.name,
+            email: formData.email,
+            phone: formData.cell,
+          })
+          .then(() => {
+            console.log('CPF salvo no banco com sucesso')
+          })
+          .catch(error => {
+            console.error('Erro ao salvar CPF no banco:', error)
+          })
 
         setLoading(false)
         setShowSuccessModal(true)
